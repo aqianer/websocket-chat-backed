@@ -44,8 +44,12 @@ E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbac
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\FileOperationLogRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\FileRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\PackageDetailRepository.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\ProductRateRepository.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\ProductRepository.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\PromotionRuleRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\RechargeRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\UsageDetailRepository.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\UserNumberProductRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\UserNumberRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\ConsumptionService.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\DashboardService.java
@@ -59,4 +63,5 @@ E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbac
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\RechargeService.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\UserQueryService.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\UserService.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\util\DataGenerator.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\WebSocketChatBackedApplication.java
