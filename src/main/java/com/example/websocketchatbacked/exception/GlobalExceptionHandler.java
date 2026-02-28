@@ -31,6 +31,11 @@ public class GlobalExceptionHandler {
         return ApiResponse.error(400, "参数错误：" + errorMessage);
     }
 
+    @ExceptionHandler(BusinessException.class)
+    public ApiResponse<Void> handleBusinessException(BusinessException e) {
+        return ApiResponse.error(e.getCode(), e.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ApiResponse<Void> handleException(Exception e) {
         e.printStackTrace();

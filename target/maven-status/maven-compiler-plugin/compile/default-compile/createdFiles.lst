@@ -63,6 +63,5 @@ com\example\websocketchatbacked\service\ConsumptionService.class
 com\example\websocketchatbacked\controller\ConsumptionController.class
 com\example\websocketchatbacked\entity\ProductRate.class
 com\example\websocketchatbacked\dto\RechargeAuditRequest.class
-com\example\websockatchatbacked\dto\PageResponse.class
 com\example\websocketchatbacked\repository\PackageDetailRepository.class
 com\example\websocketchatbacked\controller\UserController.class
