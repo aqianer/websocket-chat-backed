@@ -3,6 +3,15 @@ package com.example.websocketchatbacked.dto;
 public class BatchConfigDTO {
     private String splitStrategy;
     private String language;
+    private String knowledgeBaseId;
+
+    public String getKnowledgeBaseId() {
+        return knowledgeBaseId;
+    }
+
+    public void setKnowledgeBaseId(String knowledgeBaseId) {
+        this.knowledgeBaseId = knowledgeBaseId;
+    }
 
     public BatchConfigDTO() {
     }

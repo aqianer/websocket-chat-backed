@@ -93,12 +93,13 @@ public class FileController {
 
             for (MultipartFile file : files) {
                 if (!file.isEmpty()) {
+                    String storagePath = null;
                     try {
                         validateFileType(file.getOriginalFilename());
                         validateFileSize(file.getSize(), MAX_SINGLE_FILE_SIZE, "单个文件");
 
-                        String storagePath = saveFile(file);
-                        Long fileId = saveFileRecord(file, userId, storagePath, null);
+                        storagePath = saveFile(file);
+                        Long fileId = saveFileRecord(file, userId, storagePath, batchConfig != null ? Long.valueOf(batchConfig.getKnowledgeBaseId()) : null);
                         logOperation(userId, fileId, "upload", null, "success", null);
 
                         KbDocument kbDocument = kbDocumentRepository.findById(fileId).orElse(null);
@@ -116,6 +117,17 @@ public class FileController {
                     } catch (Exception e) {
                         failCount++;
                         errors.add(new UploadErrorDTO(file.getOriginalFilename(), e.getMessage()));
+                        
+                        if (storagePath != null) {
+                            try {
+                                Path filePath = Paths.get(storagePath);
+                                if (Files.exists(filePath)) {
+                                    Files.delete(filePath);
+                                }
+                            } catch (IOException deleteEx) {
+                                logOperation(userId, null, "cleanup", null, "failed", "删除文件失败: " + deleteEx.getMessage());
+                            }
+                        }
                     }
                 }
             }
