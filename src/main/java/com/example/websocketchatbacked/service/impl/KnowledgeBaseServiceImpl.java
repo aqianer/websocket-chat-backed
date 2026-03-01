@@ -10,6 +10,7 @@ import com.example.websocketchatbacked.repository.KbChunkRepository;
 import com.example.websocketchatbacked.repository.KbDocumentRepository;
 import com.example.websocketchatbacked.repository.KnowledgeBaseRepository;
 import com.example.websocketchatbacked.service.KnowledgeBaseService;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,8 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.persistence.criteria.Predicate;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -125,8 +125,9 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         kb.setVectorDim(request.getVectorDim());
         kb.setDocCount(0);
         kb.setStatus((byte) 1);
-        kb.setCreateTime(Instant.now());
-        kb.setUpdateTime(Instant.now());
+        kb.setDeleted((byte) 0);
+        kb.setCreateTime(LocalDateTime.now());
+        kb.setUpdateTime(LocalDateTime.now());
 
         knowledgeBaseRepository.save(kb);
     }
@@ -165,7 +166,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             kb.setVectorDim(request.getVectorDim());
         }
 
-        kb.setUpdateTime(Instant.now());
+        kb.setUpdateTime(LocalDateTime.now());
         knowledgeBaseRepository.save(kb);
     }
 
@@ -244,13 +245,16 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
                 KbDocument doc = new KbDocument();
                 doc.setKbId(kbId);
+                doc.setUserId(StpUtil.getLoginIdAsLong());
                 doc.setFileName(originalFilename);
                 doc.setFileSize(file.getSize());
                 doc.setFileType(fileExtension.toUpperCase());
                 doc.setStoragePath("/uploads/kb/" + kbId + "/" + System.currentTimeMillis() + "_" + originalFilename);
                 doc.setChunkCount(0);
                 doc.setStatus((byte) 1);
-                doc.setCreateTime(Instant.now());
+                doc.setCurrentStep((byte) 1);
+                doc.setCreateTime(java.time.LocalDateTime.now());
+                doc.setUpdateTime(java.time.LocalDateTime.now());
 
                 kbDocumentRepository.save(doc);
                 successCount++;

@@ -15,8 +15,8 @@ public class FileOperationLog {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "file_id")
-    private Long fileId;
+    @Column(name = "doc_id")
+    private Long docId;
 
     @Column(name = "operation_type", nullable = false, length = 20)
     private String operationType;
@@ -32,6 +32,10 @@ public class FileOperationLog {
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "doc_id", insertable = false, updatable = false)
+    private KbDocument kbDocument;
 
     public Long getId() {
         return id;
@@ -49,12 +53,20 @@ public class FileOperationLog {
         this.userId = userId;
     }
 
-    public Long getFileId() {
-        return fileId;
+    public Long getDocId() {
+        return docId;
     }
 
-    public void setFileId(Long fileId) {
-        this.fileId = fileId;
+    public void setDocId(Long docId) {
+        this.docId = docId;
+    }
+
+    public KbDocument getKbDocument() {
+        return kbDocument;
+    }
+
+    public void setKbDocument(KbDocument kbDocument) {
+        this.kbDocument = kbDocument;
     }
 
     public String getOperationType() {

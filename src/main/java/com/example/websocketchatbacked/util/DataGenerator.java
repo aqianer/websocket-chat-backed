@@ -5,6 +5,7 @@ import com.example.websocketchatbacked.repository.*;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Component
+@ConditionalOnProperty(name = "data.generator.enabled", havingValue = "true", matchIfMissing = false)
 public class DataGenerator implements CommandLineRunner {
 
     @Autowired
@@ -48,7 +50,10 @@ public class DataGenerator implements CommandLineRunner {
     private UsageDetailRepository usageDetailRepository;
 
     @Autowired
-    private FileRepository fileRepository;
+    private KbDocumentRepository kbDocumentRepository;
+
+    @Autowired
+    private KnowledgeBaseRepository knowledgeBaseRepository;
 
     @Autowired
     private FileOperationLogRepository fileOperationLogRepository;
@@ -91,7 +96,8 @@ public class DataGenerator implements CommandLineRunner {
         report.put("recharge", generateRechargeData());
         report.put("package_detail", generatePackageDetailData());
         report.put("usage_detail", generateUsageDetailData());
-        report.put("file_record", generateFileRecordData());
+        report.put("kb_knowledge_base", generateKnowledgeBaseData());
+        report.put("kb_document", generateKbDocumentData());
         report.put("file_operation_log", generateFileOperationLogData());
 
         System.out.println("\n========================================");
@@ -352,26 +358,64 @@ public class DataGenerator implements CommandLineRunner {
         return 50;
     }
 
-    private int generateFileRecordData() {
-        if (fileRepository.count() > 0) {
-            System.out.println("file_record 表已有数据，跳过生成");
-            return (int) fileRepository.count();
+    private int generateKbDocumentData() {
+        if (kbDocumentRepository.count() > 0) {
+            System.out.println("kb_document 表已有数据，跳过生成");
+            return (int) kbDocumentRepository.count();
         }
 
-        List<FileRecord> fileRecords = new ArrayList<>();
+        List<KbDocument> kbDocuments = new ArrayList<>();
         for (int i = 0; i < 25; i++) {
-            FileRecord fileRecord = new FileRecord();
-            fileRecord.setUserId((long) (random.nextInt(20) + 1));
-            fileRecord.setOriginalFilename("文件_" + (i + 1) + "." + FILE_TYPES[random.nextInt(FILE_TYPES.length)]);
-            fileRecord.setStoragePath("/uploads/" + fileRecord.getOriginalFilename());
-            fileRecord.setFileSize((long) (random.nextInt(10 * 1024 * 1024) + 1024));
-            fileRecord.setFileType(FILE_TYPES[random.nextInt(FILE_TYPES.length)]);
-            fileRecord.setUploadTime(LocalDateTime.now().minusDays(random.nextInt(90)));
-            fileRecords.add(fileRecord);
+            KbDocument kbDocument = new KbDocument();
+            kbDocument.setKbId((long) (random.nextInt(5) + 1));
+            kbDocument.setUserId((long) (random.nextInt(20) + 1));
+            kbDocument.setFileName("文件_" + (i + 1) + "." + FILE_TYPES[random.nextInt(FILE_TYPES.length)]);
+            kbDocument.setStoragePath("/uploads/" + kbDocument.getFileName());
+            kbDocument.setFileSize((long) (random.nextInt(10 * 1024 * 1024) + 1024));
+            kbDocument.setFileType(FILE_TYPES[random.nextInt(FILE_TYPES.length)].toUpperCase());
+            kbDocument.setChunkCount(random.nextInt(100));
+            kbDocument.setStatus((byte) (random.nextBoolean() ? 1 : 0));
+            kbDocument.setCurrentStep((byte) (random.nextInt(5) + 1));
+            LocalDateTime createTime = LocalDateTime.now().minusDays(random.nextInt(90));
+            kbDocument.setCreateTime(createTime);
+            kbDocument.setUpdateTime(createTime.plusDays(random.nextInt(30)));
+            kbDocuments.add(kbDocument);
         }
-        fileRepository.saveAll(fileRecords);
-        System.out.println("file_record 表: 生成 25 条记录");
+        kbDocumentRepository.saveAll(kbDocuments);
+        System.out.println("kb_document 表: 生成 25 条记录");
         return 25;
+    }
+
+    private int generateKnowledgeBaseData() {
+        if (knowledgeBaseRepository.count() > 0) {
+            System.out.println("kb_knowledge_base 表已有数据，跳过生成");
+            return (int) knowledgeBaseRepository.count();
+        }
+
+        List<KnowledgeBase> knowledgeBases = new ArrayList<>();
+        String[] types = {"tech", "business", "policy"};
+        String[] departments = {"技术部", "市场部", "人事部", "财务部", "运营部"};
+        
+        for (int i = 0; i < 5; i++) {
+            KnowledgeBase kb = new KnowledgeBase();
+            kb.setName("知识库_" + (i + 1));
+            kb.setDescription("这是知识库" + (i + 1) + "的描述信息");
+            kb.setType(types[random.nextInt(types.length)]);
+            kb.setOwner(REAL_NAMES[random.nextInt(REAL_NAMES.length)]);
+            kb.setDepartment(departments[random.nextInt(departments.length)]);
+            kb.setVectorDim(List.of(768, 1024, 1536, 2048).get(random.nextInt(4)));
+            kb.setDocCount(random.nextInt(50));
+            kb.setStatus((byte) (random.nextBoolean() ? 1 : 0));
+            kb.setDeleted((byte) 0);
+            LocalDateTime createTime = LocalDateTime.now().minusDays(random.nextInt(180));
+            kb.setCreateTime(createTime);
+            kb.setUpdateTime(createTime.plusDays(random.nextInt(60)));
+            knowledgeBases.add(kb);
+        }
+        
+        knowledgeBaseRepository.saveAll(knowledgeBases);
+        System.out.println("kb_knowledge_base 表: 生成 5 条记录");
+        return 5;
     }
 
     private int generateFileOperationLogData() {
@@ -384,7 +428,7 @@ public class DataGenerator implements CommandLineRunner {
         for (int i = 0; i < 40; i++) {
             FileOperationLog fileOperationLog = new FileOperationLog();
             fileOperationLog.setUserId((long) (random.nextInt(20) + 1));
-            fileOperationLog.setFileId((long) (random.nextInt(25) + 1));
+            fileOperationLog.setDocId((long) (random.nextInt(25) + 1));
             fileOperationLog.setOperationType(OPERATION_TYPES[random.nextInt(OPERATION_TYPES.length)]);
             fileOperationLog.setOperationTime(LocalDateTime.now().minusDays(random.nextInt(90)));
             fileOperationLog.setIpAddress("192.168." + random.nextInt(256) + "." + random.nextInt(256));

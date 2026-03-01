@@ -2,7 +2,7 @@ package com.example.websocketchatbacked.entity;
 
 import jakarta.persistence.*;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "kb_knowledge_base")
@@ -14,6 +14,9 @@ public class KnowledgeBase {
 
     @Column(name = "name", nullable = false, length = 255)
     private String name;
+
+    @Column(name = "description")
+    private String description;
 
     @Column(name = "department", length = 100)
     private String department;
@@ -34,10 +37,13 @@ public class KnowledgeBase {
     private Byte status;
 
     @Column(name = "create_time", nullable = false)
-    private Instant createTime;
+    private LocalDateTime createTime;
 
     @Column(name = "update_time", nullable = false)
-    private Instant updateTime;
+    private LocalDateTime updateTime;
+
+    @Column(name = "deleted", nullable = false)
+    private Byte deleted;
 
     public Long getId() {
         return id;
@@ -53,6 +59,14 @@ public class KnowledgeBase {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public String getDepartment() {
@@ -103,19 +117,27 @@ public class KnowledgeBase {
         this.status = status;
     }
 
-    public Instant getCreateTime() {
+    public LocalDateTime getCreateTime() {
         return createTime;
     }
 
-    public void setCreateTime(Instant createTime) {
+    public void setCreateTime(LocalDateTime createTime) {
         this.createTime = createTime;
     }
 
-    public Instant getUpdateTime() {
+    public LocalDateTime getUpdateTime() {
         return updateTime;
     }
 
-    public void setUpdateTime(Instant updateTime) {
+    public void setUpdateTime(LocalDateTime updateTime) {
         this.updateTime = updateTime;
+    }
+
+    public Byte getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Byte deleted) {
+        this.deleted = deleted;
     }
 }

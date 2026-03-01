@@ -89,6 +89,12 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- AOP 切面编程 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- 移除原有 OpenAI 依赖，替换为阿里云通义千问依赖 -->
         <!-- 阿里云通义千问（DashScope）核心依赖 -->
         <dependency>
@@ -140,6 +146,16 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <!-- ES 8.x 客户端 -->
+        <dependency>
+            <groupId>co.elastic.clients</groupId>
+            <artifactId>elasticsearch-java</artifactId>
+            <version>8.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
     </dependencies>
 

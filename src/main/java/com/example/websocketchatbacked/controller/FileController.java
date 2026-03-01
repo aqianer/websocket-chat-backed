@@ -2,16 +2,20 @@ package com.example.websocketchatbacked.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.exception.NotPermissionException;
+import cn.dev33.satoken.stp.StpUtil;
 import com.example.websocketchatbacked.dto.ApiResponse;
+import com.example.websocketchatbacked.dto.BatchConfigDTO;
 import com.example.websocketchatbacked.dto.BatchDeleteRequest;
+import com.example.websocketchatbacked.dto.BatchUploadResponseDTO;
 import com.example.websocketchatbacked.dto.FileListDTO;
+import com.example.websocketchatbacked.dto.UploadErrorDTO;
+import com.example.websocketchatbacked.dto.UploadedFileDTO;
 import com.example.websocketchatbacked.entity.FileOperationLog;
-import com.example.websocketchatbacked.entity.FileRecord;
+import com.example.websocketchatbacked.entity.KbDocument;
 import com.example.websocketchatbacked.repository.FileOperationLogRepository;
-import com.example.websocketchatbacked.repository.FileRepository;
+import com.example.websocketchatbacked.repository.KbDocumentRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,10 +26,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,13 +37,14 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
-@RequestMapping("/api/file")
+@RequestMapping("/api/v1")
 public class FileController {
 
     @Autowired
-    private FileRepository fileRepository;
+    private KbDocumentRepository kbDocumentRepository;
 
     @Autowired
     private FileOperationLogRepository fileOperationLogRepository;
@@ -48,65 +52,106 @@ public class FileController {
     @Value("${file.upload.path}")
     private String uploadPath;
 
-    private static final Set<String> ALLOWED_FILE_TYPES = new HashSet<>(Arrays.asList("doc", "docx", "pdf", "txt", "jpg", "png"));
-    private static final long MAX_SINGLE_FILE_SIZE = 10 * 1024 * 1024;
-    private static final long MAX_BATCH_FILE_SIZE = 50 * 1024 * 1024;
+    @Autowired
+    private ObjectMapper objectMapper;
 
-    @PostMapping("/upload")
+    private static final Set<String> ALLOWED_FILE_TYPES = new HashSet<>(Arrays.asList("doc", "docx", "pdf", "txt", "md"));
+    private static final long MAX_SINGLE_FILE_SIZE = 100 * 1024 * 1024;
+    private static final int MAX_FILE_COUNT = 300;
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    @PostMapping("/documents/upload")
     @SaCheckLogin
     @SaCheckPermission("3")
-    public ApiResponse<Map<String, List<Long>>> uploadFile(
-            @RequestParam(value = "file", required = false) MultipartFile singleFile,
-            @RequestParam(value = "files", required = false) List<MultipartFile> multiFiles) {
+    public ApiResponse<BatchUploadResponseDTO> uploadFile(
+            @RequestParam(value = "files[]", required = false) List<MultipartFile> files,
+            @RequestParam(value = "batchConfig", required = false) String batchConfigJson) {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
-            List<Long> fileIds = new ArrayList<>();
 
-            if (singleFile != null && !singleFile.isEmpty()) {
-                Long fileId = processSingleFile(singleFile, userId);
-                fileIds.add(fileId);
-            } else if (multiFiles != null && !multiFiles.isEmpty()) {
-                List<Long> batchFileIds = processBatchFiles(multiFiles, userId);
-                fileIds.addAll(batchFileIds);
-            } else {
+            if (files == null || files.isEmpty()) {
                 return ApiResponse.error(400, "请选择要上传的文件");
             }
 
-            Map<String, List<Long>> data = new HashMap<>();
-            data.put("fileIds", fileIds);
-            return ApiResponse.success(data);
+            if (files.size() > MAX_FILE_COUNT) {
+                return ApiResponse.error(400, "文件数量超出限制，最多支持 " + MAX_FILE_COUNT + " 个文件");
+            }
+
+            BatchConfigDTO batchConfig = null;
+            if (batchConfigJson != null && !batchConfigJson.isEmpty()) {
+                try {
+                    batchConfig = objectMapper.readValue(batchConfigJson, BatchConfigDTO.class);
+                } catch (Exception e) {
+                    return ApiResponse.error(400, "batchConfig 格式错误");
+                }
+            }
+
+            List<UploadedFileDTO> uploadedFiles = new ArrayList<>();
+            List<UploadErrorDTO> errors = new ArrayList<>();
+            int successCount = 0;
+            int failCount = 0;
+
+            for (MultipartFile file : files) {
+                if (!file.isEmpty()) {
+                    try {
+                        validateFileType(file.getOriginalFilename());
+                        validateFileSize(file.getSize(), MAX_SINGLE_FILE_SIZE, "单个文件");
+
+                        String storagePath = saveFile(file);
+                        Long fileId = saveFileRecord(file, userId, storagePath, null);
+                        logOperation(userId, fileId, "upload", null, "success", null);
+
+                        KbDocument kbDocument = kbDocumentRepository.findById(fileId).orElse(null);
+                        if (kbDocument != null) {
+                            UploadedFileDTO uploadedFile = new UploadedFileDTO(
+                                    fileId,
+                                    file.getOriginalFilename(),
+                                    file.getSize(),
+                                    kbDocument.getCreateTime().format(DATE_TIME_FORMATTER),
+                                    "success"
+                            );
+                            uploadedFiles.add(uploadedFile);
+                            successCount++;
+                        }
+                    } catch (Exception e) {
+                        failCount++;
+                        errors.add(new UploadErrorDTO(file.getOriginalFilename(), e.getMessage()));
+                    }
+                }
+            }
+
+            BatchUploadResponseDTO response = new BatchUploadResponseDTO(successCount, failCount, uploadedFiles, errors);
+            return new ApiResponse<>(200, "上传成功", response);
 
         } catch (NotLoginException e) {
-            return ApiResponse.error(401, "用户未登录");
+            return ApiResponse.error(401, "未授权，请先登录");
         } catch (NotPermissionException e) {
             return ApiResponse.error(403, "权限不足，仅超级管理员可操作");
         } catch (MaxUploadSizeExceededException e) {
             return ApiResponse.error(400, "文件大小超出限制");
         } catch (MultipartException e) {
             return ApiResponse.error(400, "文件上传失败：" + e.getMessage());
-        } catch (IOException e) {
-            return ApiResponse.error(500, "文件写入失败：" + e.getMessage());
         } catch (Exception e) {
             return ApiResponse.error(500, "上传失败：" + e.getMessage());
         }
     }
 
-    @GetMapping("/list")
+    @GetMapping("/file/list")
     @SaCheckLogin
     @SaCheckPermission("3")
     public ApiResponse<List<FileListDTO>> getFileList() {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
-            List<FileRecord> fileRecords = fileRepository.findAll();
+            List<KbDocument> kbDocuments = kbDocumentRepository.findAll();
             
-            List<FileListDTO> fileList = fileRecords.stream()
-                    .map(record -> new FileListDTO(
-                            record.getId(),
-                            record.getOriginalFilename(),
-                            record.getUploadTime(),
-                            record.getUploadTime(),
-                            record.getFileSize(),
-                            getMimeType(record.getFileType())
+            List<FileListDTO> fileList = kbDocuments.stream()
+                    .map(doc -> new FileListDTO(
+                            doc.getId(),
+                            doc.getFileName(),
+                            doc.getCreateTime(),
+                            doc.getUpdateTime(),
+                            doc.getFileSize(),
+                            doc.getFileType()
                     ))
                     .collect(Collectors.toList());
 
@@ -121,26 +166,26 @@ public class FileController {
         }
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/file/{id}")
     @SaCheckLogin
     @SaCheckPermission("3")
     public ApiResponse<Void> deleteFile(@PathVariable Long id, HttpServletRequest request) {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
-            Optional<FileRecord> fileRecordOpt = fileRepository.findById(id);
+            Optional<KbDocument> kbDocumentOpt = kbDocumentRepository.findById(id);
             
-            if (fileRecordOpt.isEmpty()) {
+            if (kbDocumentOpt.isEmpty()) {
                 return ApiResponse.error(404, "文件不存在");
             }
 
-            FileRecord fileRecord = fileRecordOpt.get();
-            Path filePath = Paths.get(fileRecord.getStoragePath());
+            KbDocument kbDocument = kbDocumentOpt.get();
+            Path filePath = Paths.get(kbDocument.getStoragePath());
             
             if (Files.exists(filePath)) {
                 Files.delete(filePath);
             }
 
-            fileRepository.deleteById(id);
+            kbDocumentRepository.deleteById(id);
             logOperation(userId, id, "delete", request.getRemoteAddr(), "success", null);
 
             return ApiResponse.success(null);
@@ -156,7 +201,7 @@ public class FileController {
         }
     }
 
-    @DeleteMapping("/batch")
+    @DeleteMapping("/file/batch")
     @SaCheckLogin
     @SaCheckPermission("3")
     public ApiResponse<Map<String, Integer>> batchDeleteFiles(@RequestBody BatchDeleteRequest request, HttpServletRequest httpRequest) {
@@ -173,16 +218,16 @@ public class FileController {
 
             for (Long id : ids) {
                 try {
-                    Optional<FileRecord> fileRecordOpt = fileRepository.findById(id);
-                    if (fileRecordOpt.isPresent()) {
-                        FileRecord fileRecord = fileRecordOpt.get();
-                        Path filePath = Paths.get(fileRecord.getStoragePath());
+                    Optional<KbDocument> kbDocumentOpt = kbDocumentRepository.findById(id);
+                    if (kbDocumentOpt.isPresent()) {
+                        KbDocument kbDocument = kbDocumentOpt.get();
+                        Path filePath = Paths.get(kbDocument.getStoragePath());
                         
                         if (Files.exists(filePath)) {
                             Files.delete(filePath);
                         }
 
-                        fileRepository.deleteById(id);
+                        kbDocumentRepository.deleteById(id);
                         logOperation(userId, id, "delete", httpRequest.getRemoteAddr(), "success", null);
                         successCount++;
                     } else {
@@ -208,33 +253,33 @@ public class FileController {
         }
     }
 
-    @GetMapping("/download/{id}")
+    @GetMapping("/file/download/{id}")
     @SaCheckLogin
     @SaCheckPermission("3")
     public ResponseEntity<Resource> downloadFile(@PathVariable Long id, HttpServletRequest request) {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
-            Optional<FileRecord> fileRecordOpt = fileRepository.findById(id);
+            Optional<KbDocument> kbDocumentOpt = kbDocumentRepository.findById(id);
             
-            if (fileRecordOpt.isEmpty()) {
+            if (kbDocumentOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
 
-            FileRecord fileRecord = fileRecordOpt.get();
-            Path filePath = Paths.get(fileRecord.getStoragePath());
+            KbDocument kbDocument = kbDocumentOpt.get();
+            Path filePath = Paths.get(kbDocument.getStoragePath());
             
             if (!Files.exists(filePath)) {
                 return ResponseEntity.notFound().build();
             }
 
             Resource resource = new FileSystemResource(filePath.toFile());
-            String contentType = getMimeType(fileRecord.getFileType());
+            String contentType = getMimeType(kbDocument.getFileType());
             
             logOperation(userId, id, "download", request.getRemoteAddr(), "success", null);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileRecord.getOriginalFilename() + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + kbDocument.getFileName() + "\"")
                     .body(resource);
 
         } catch (NotLoginException | NotPermissionException e) {
@@ -244,32 +289,6 @@ public class FileController {
         }
     }
 
-    private Long processSingleFile(MultipartFile file, Long userId) throws IOException {
-        validateFileType(file.getOriginalFilename());
-        validateFileSize(file.getSize(), MAX_SINGLE_FILE_SIZE, "单个文件");
-
-        String storagePath = saveFile(file);
-        Long fileId = saveFileRecord(file, userId, storagePath);
-        logOperation(userId, fileId, "upload", null, "success", null);
-        return fileId;
-    }
-
-    private List<Long> processBatchFiles(List<MultipartFile> files, Long userId) throws IOException {
-        long totalSize = files.stream().mapToLong(MultipartFile::getSize).sum();
-        validateFileSize(totalSize, MAX_BATCH_FILE_SIZE, "批量文件");
-
-        List<Long> fileIds = new ArrayList<>();
-        for (MultipartFile file : files) {
-            if (!file.isEmpty()) {
-                validateFileType(file.getOriginalFilename());
-                String storagePath = saveFile(file);
-                Long fileId = saveFileRecord(file, userId, storagePath);
-                logOperation(userId, fileId, "upload", null, "success", null);
-                fileIds.add(fileId);
-            }
-        }
-        return fileIds;
-    }
 
     private void validateFileType(String filename) {
         if (filename == null || filename.isEmpty()) {
@@ -303,23 +322,28 @@ public class FileController {
         return filePath.toString();
     }
 
-    private Long saveFileRecord(MultipartFile file, Long userId, String storagePath) {
-        FileRecord fileRecord = new FileRecord();
-        fileRecord.setUserId(userId);
-        fileRecord.setOriginalFilename(file.getOriginalFilename());
-        fileRecord.setStoragePath(storagePath);
-        fileRecord.setFileSize(file.getSize());
-        fileRecord.setFileType(getFileExtension(file.getOriginalFilename()));
-        fileRecord.setUploadTime(LocalDateTime.now());
+    private Long saveFileRecord(MultipartFile file, Long userId, String storagePath, Long kbId) {
+        KbDocument kbDocument = new KbDocument();
+        kbDocument.setKbId(kbId != null ? kbId : 1L);
+        kbDocument.setUserId(userId);
+        kbDocument.setFileName(file.getOriginalFilename());
+        kbDocument.setStoragePath(storagePath);
+        kbDocument.setFileSize(file.getSize());
+        kbDocument.setFileType(getFileExtension(file.getOriginalFilename()).toUpperCase());
+        kbDocument.setChunkCount(0);
+        kbDocument.setStatus((byte) 1);
+        kbDocument.setCurrentStep((byte) 1);
+        kbDocument.setCreateTime(LocalDateTime.now());
+        kbDocument.setUpdateTime(LocalDateTime.now());
 
-        FileRecord savedRecord = fileRepository.save(fileRecord);
-        return savedRecord.getId();
+        KbDocument savedDocument = kbDocumentRepository.save(kbDocument);
+        return savedDocument.getId();
     }
 
     private void logOperation(Long userId, Long fileId, String operationType, String ipAddress, String status, String errorMessage) {
         FileOperationLog log = new FileOperationLog();
         log.setUserId(userId);
-        log.setFileId(fileId);
+        log.setDocId(fileId);
         log.setOperationType(operationType);
         log.setOperationTime(LocalDateTime.now());
         log.setIpAddress(ipAddress);
@@ -334,9 +358,7 @@ public class FileController {
         mimeTypes.put("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
         mimeTypes.put("pdf", "application/pdf");
         mimeTypes.put("txt", "text/plain");
-        mimeTypes.put("jpg", "image/jpeg");
-        mimeTypes.put("jpeg", "image/jpeg");
-        mimeTypes.put("png", "image/png");
+        mimeTypes.put("md", "text/markdown");
         return mimeTypes.getOrDefault(extension.toLowerCase(), "application/octet-stream");
     }
 

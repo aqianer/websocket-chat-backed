@@ -51,6 +51,8 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
       retries: 3
+  elasticsearch:
+    uris: http://localhost:9200
 
 flink:
   kafka:
@@ -88,3 +90,12 @@ sa-token:
 file:
   upload:
     path: ${FILE_UPLOAD_PATH:e:/JavaProjects/milvus/documents}
+
+logging:
+  aspect:
+    enabled: true
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  level:
+    com.example.websocketchatbacked: INFO
+    com.example.websocketchatbacked.config.LoggingAspect: INFO
