@@ -112,4 +112,13 @@ public class KnowledgeBaseController {
         List<ChunkPreviewDTO> result = knowledgeBaseService.getDocumentChunks(kbId, documentId);
         return ApiResponse.success(result);
     }
+
+    @PostMapping("/document-upload-wizard/{kbId}/{documentId}")
+    @Operation(summary = "获取文档上传向导信息", description = "获取指定文档的详细信息，用于判断文档处理状态并导航到上传向导的相应步骤")
+    public ApiResponse<DocumentUploadWizardDTO> getDocumentUploadWizard(
+            @Parameter(description = "知识库ID", required = true) @PathVariable Long kbId,
+            @Parameter(description = "文档ID", required = true) @PathVariable Long documentId) {
+        DocumentUploadWizardDTO result = knowledgeBaseService.getDocumentUploadWizard(kbId, documentId);
+        return ApiResponse.success(result);
+    }
 }

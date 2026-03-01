@@ -26,4 +26,6 @@ public interface KnowledgeBaseService {
     void reVectorizeDocument(Long kbId, Long documentId);
 
     List<ChunkPreviewDTO> getDocumentChunks(Long kbId, Long documentId);
+
+    DocumentUploadWizardDTO getDocumentUploadWizard(Long kbId, Long documentId);
 }

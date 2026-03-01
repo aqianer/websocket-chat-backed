@@ -326,6 +326,41 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         }).collect(Collectors.toList());
     }
 
+    @Override
+    public DocumentUploadWizardDTO getDocumentUploadWizard(Long kbId, Long documentId) {
+        KbDocument doc = kbDocumentRepository.findById(documentId)
+                .orElseThrow(() -> new BusinessException(404, "文档不存在"));
+
+        if (!doc.getKbId().equals(kbId)) {
+            throw new BusinessException(403, "文档不属于该知识库");
+        }
+
+        DocumentUploadWizardDTO dto = new DocumentUploadWizardDTO();
+        dto.setDocumentId(doc.getId());
+        dto.setFileName(doc.getFileName());
+        dto.setUploadTime(doc.getCreateTime() != null ? DATETIME_FORMATTER.format(doc.getCreateTime()) : "");
+        dto.setFileSize(formatFileSize(doc.getFileSize()));
+        dto.setFileType(doc.getFileType());
+
+        List<KbChunk> chunks = kbChunkRepository.findByDocIdOrderByChunkNum(documentId);
+        if (chunks == null || chunks.isEmpty()) {
+            dto.setStatus("uploaded_not_chunked");
+            dto.setChunkData(null);
+        } else {
+            dto.setStatus("chunked");
+            List<ChunkPreviewDTO> chunkData = chunks.stream().map(chunk -> {
+                ChunkPreviewDTO chunkDto = new ChunkPreviewDTO();
+                chunkDto.setContent(chunk.getContent());
+                chunkDto.setTokenCount(chunk.getContent() != null ? chunk.getContent().length() / 2 : 0);
+                chunkDto.setVectorStatus(chunk.getEmbeddingId() != null ? "已向量化" : "未向量化");
+                return chunkDto;
+            }).collect(Collectors.toList());
+            dto.setChunkData(chunkData);
+        }
+
+        return dto;
+    }
+
     private String formatFileSize(Long size) {
         if (size == null) {
             return "0 B";
