@@ -8,6 +8,8 @@ import com.example.websocketchatbacked.entity.UploadResult;
 import com.example.websocketchatbacked.repository.FileOperationLogRepository;
 import com.example.websocketchatbacked.repository.KbDocumentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
@@ -25,6 +27,8 @@ import java.util.concurrent.CompletableFuture;
 
 @Service
 public class AsyncTaskService {
+
+    private static final Logger log = LoggerFactory.getLogger(AsyncTaskService.class);
 
     @Autowired
     private KbDocumentRepository kbDocumentRepository;
@@ -45,6 +49,12 @@ public class AsyncTaskService {
 
     @Async("chunkExecutor")
     public CompletableFuture<Void> processChunk(String documentId) {
+        // 读取文件
+        // 选择文件处理策略
+        // 分块处理
+        // 写入ES
+        // 写入Mysql
+
         // 分块逻辑
         return CompletableFuture.runAsync(() -> {
             // 具体分块代码
@@ -54,58 +64,101 @@ public class AsyncTaskService {
     /**
      * 异步上传文件方法
      *
-     * @param file 要上传的文件（MultipartFile类型）
-     * @return CompletableFuture<UploadResult> 异步结果，包含上传状态和文件信息
+     * @param file        要上传的文件（MultipartFile类型）
+     * @param userId      上传用户ID
+     * @param batchConfigJson 批量配置DTO（包含知识库ID等）
+     * @return UploadResult 异步结果，包含上传状态和文件信息
      */
-    @Async("uploadExecutor")
-    public CompletableFuture<UploadResult> uploadFile(MultipartFile file, Long userId, BatchConfigDTO batchConfig) {
-        // 创建UploadResult对象，用来记录结果
+    @Async("uploadExecutor") // 指定自定义线程池
+    public UploadResult uploadFile(MultipartFile file, Long userId, String batchConfigJson) {
+        // 初始化返回结果
         UploadResult result = new UploadResult();
-        // 设置文件名
-        result.setFileName(file.getOriginalFilename());
+        String originalFileName = file.getOriginalFilename();
+        String storagePath = null;
+        Long fileId = null;
+
         try {
-            if (!file.isEmpty()) {
-                String storagePath = null;
-                try {
-                    validateFileType(file.getOriginalFilename());
-                    validateFileSize(file.getSize(), MAX_SINGLE_FILE_SIZE, "单个文件");
-
-                    storagePath = saveFile(file);
-                    Long fileId = saveFileRecord(file, userId, storagePath, batchConfig != null ? Long.valueOf(batchConfig.getKnowledgeBaseId()) : null);
-                    logOperation(userId, fileId, "upload", null, "success", null);
-
-                    KbDocument kbDocument = kbDocumentRepository.findById(fileId).orElse(null);
-                    if (kbDocument != null) {
-                        UploadedFileDTO uploadedFile = new UploadedFileDTO(
-                                fileId,
-                                file.getOriginalFilename(),
-                                file.getSize(),
-                                kbDocument.getCreateTime().format(DATE_TIME_FORMATTER),
-                                "success"
-                        );
-                    }
-                } catch (Exception e) {
-                    if (storagePath != null) {
-                        try {
-                            Path filePath = Paths.get(storagePath);
-                            if (Files.exists(filePath)) {
-                                Files.delete(filePath);
-                            }
-                        } catch (IOException deleteEx) {
-                            logOperation(userId, null, "cleanup", null, "failed", "删除文件失败: " + deleteEx.getMessage());
-                        }
-                    }
-                }
+            // 1. 空文件校验
+            if (file.isEmpty()) {
+                throw new IllegalArgumentException("上传文件为空：" + originalFileName);
             }
+
+            // 2. 文件类型校验
+            validateFileType(originalFileName);
+            // 3. 文件大小校验
+            validateFileSize(file.getSize(), MAX_SINGLE_FILE_SIZE, "单个文件");
+
+            // 4. 保存文件到本地服务器
+            storagePath = saveFile(file);
+            log.info("文件{}已保存到本地路径：{}", originalFileName, storagePath);
+
+            BatchConfigDTO batchConfig = null;
+            if (batchConfigJson != null && !batchConfigJson.isEmpty()) {
+                batchConfig = objectMapper.readValue(batchConfigJson, BatchConfigDTO.class);
+
+            }
+
+            // 5. 保存文件记录到数据库
+            Long knowledgeBaseId = batchConfig != null ? Long.valueOf(batchConfig.getKnowledgeBaseId()) : null;
+            fileId = saveFileRecord(file, userId, storagePath, knowledgeBaseId);
+            logOperation(userId, fileId, "upload", null, "success", null);
+
+            // 6. 封装文件DTO（赋值到result，供前端使用）
+            Long finalFileId = fileId;
+            KbDocument kbDocument = kbDocumentRepository.findById(fileId).orElseThrow(
+                    () -> new RuntimeException("文件记录保存后未查询到：fileId=" + finalFileId)
+            );
+            UploadedFileDTO uploadedFile = new UploadedFileDTO(
+                    fileId,
+                    originalFileName,
+                    file.getSize(),
+                    kbDocument.getCreateTime().format(DATE_TIME_FORMATTER),
+                    "success"
+            );
+            // 可选：将DTO存入result（需给UploadResult添加对应字段）
+            result.setUploadedFile(uploadedFile);
+
+            // 7. 标记上传成功
             result.setSuccess(true);
+            result.setErrorMsg("");
+
         } catch (Exception e) {
-            // 如果发生异常，设置success为false，并记录错误信息
+            // 捕获所有异常，标记上传失败
+            log.error("文件{}上传失败", originalFileName, e);
             result.setSuccess(false);
             result.setErrorMsg("上传失败：" + e.getMessage());
+
+            // 8. 异常时清理资源：删除文件 + 清理数据库记录
+            if (storagePath != null) {
+                try {
+                    Path filePath = Paths.get(storagePath);
+                    if (Files.exists(filePath)) {
+                        Files.delete(filePath);
+                        log.info("已清理失败文件的本地存储：{}", storagePath);
+                    }
+                } catch (IOException deleteEx) {
+                    log.error("删除失败文件{}的本地存储失败", storagePath, deleteEx);
+                    logOperation(userId, null, "cleanup", null, "failed", "删除文件失败: " + deleteEx.getMessage());
+                }
+            }
+            if (fileId != null) {
+                try {
+                    deleteFileRecord(fileId); // 新增：删除数据库中已插入的记录
+                    log.info("已清理失败文件的数据库记录：fileId={}", fileId);
+                } catch (Exception deleteDbEx) {
+                    log.error("删除失败文件{}的数据库记录失败", fileId, deleteDbEx);
+                    logOperation(userId, fileId, "cleanup", null, "failed", "删除数据库记录失败: " + deleteDbEx.getMessage());
+                }
+            }
+            logOperation(userId, fileId, "upload", null, "failed", e.getMessage());
         }
 
-        // 返回包含结果的CompletableFuture
-        return CompletableFuture.completedFuture(result);
+        // 返回异步结果（如果saveFile是耗时操作，建议用supplyAsync包装核心逻辑）
+        return result;
+    }
+
+    private void deleteFileRecord(Long fileId) {
+        kbDocumentRepository.deleteById(fileId);
     }
 
     @Async("vectorExecutor")

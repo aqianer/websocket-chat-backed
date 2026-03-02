@@ -81,4 +81,46 @@ public class ThreadPoolConfig {
         executor.initialize();
         return executor;
     }
+
+    @Bean(name = "fileProcessingExecutor")
+    public Executor fileProcessingExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(CPU_CORES);
+        executor.setMaxPoolSize(CPU_CORES * 2);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("file-processing-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(120);
+        executor.initialize();
+        return executor;
+    }
+
+    @Bean(name = "batchStorageExecutor")
+    public Executor batchStorageExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(CPU_CORES);
+        executor.setMaxPoolSize(CPU_CORES * 2);
+        executor.setQueueCapacity(150);
+        executor.setThreadNamePrefix("batch-storage-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(120);
+        executor.initialize();
+        return executor;
+    }
+
+    @Bean(name = "esIndexExecutor")
+    public Executor esIndexExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(CPU_CORES / 2);
+        executor.setMaxPoolSize(CPU_CORES);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("es-index-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(120);
+        executor.initialize();
+        return executor;
+    }
 }
