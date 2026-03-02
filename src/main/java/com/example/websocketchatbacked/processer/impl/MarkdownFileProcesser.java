@@ -1,4 +1,16 @@
 package com.example.websocketchatbacked.processer.impl;
 
-public class MarkdownFileProcesser {
+import com.example.websocketchatbacked.processer.FileProcesser;
+
+import java.io.File;
+
+public class MarkdownFileProcesser implements FileProcesser {
+
+
+
+
+    @Override
+    public String process(File file) {
+        return null;
+    }
 }

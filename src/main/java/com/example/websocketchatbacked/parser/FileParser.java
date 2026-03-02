@@ -1,11 +1,13 @@
 package com.example.websocketchatbacked.parser;
 
+import com.example.websocketchatbacked.entity.ParseResult;
+
 import java.io.File;
 import java.io.IOException;
 
 public interface FileParser {
     
-    String parse(File file) throws IOException;
+    ParseResult parse(String file) throws IOException;
     
     String getSupportedExtension();
     

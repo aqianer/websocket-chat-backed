@@ -5,18 +5,16 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.exception.NotPermissionException;
 import cn.dev33.satoken.stp.StpUtil;
-import com.example.websocketchatbacked.dto.ApiResponse;
-import com.example.websocketchatbacked.dto.BatchConfigDTO;
-import com.example.websocketchatbacked.dto.BatchDeleteRequest;
-import com.example.websocketchatbacked.dto.BatchUploadResponseDTO;
-import com.example.websocketchatbacked.dto.FileListDTO;
-import com.example.websocketchatbacked.dto.UploadErrorDTO;
-import com.example.websocketchatbacked.dto.UploadedFileDTO;
+import com.example.websocketchatbacked.dto.*;
 import com.example.websocketchatbacked.entity.FileOperationLog;
 import com.example.websocketchatbacked.entity.KbDocument;
 import com.example.websocketchatbacked.repository.FileOperationLogRepository;
 import com.example.websocketchatbacked.repository.KbDocumentRepository;
+import com.example.websocketchatbacked.service.impl.AsyncTaskService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
@@ -37,11 +35,16 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/v1")
 public class FileController {
+
+    private static final Set<String> ALLOWED_FILE_TYPES = new HashSet<>(Arrays.asList("doc", "docx", "pdf", "txt", "md"));
+    private static final long MAX_SINGLE_FILE_SIZE = 100 * 1024 * 1024;
+    private static final int MAX_FILE_COUNT = 300;
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final Logger log = LoggerFactory.getLogger(FileController.class);
 
     @Autowired
     private KbDocumentRepository kbDocumentRepository;
@@ -55,10 +58,12 @@ public class FileController {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private static final Set<String> ALLOWED_FILE_TYPES = new HashSet<>(Arrays.asList("doc", "docx", "pdf", "txt", "md"));
-    private static final long MAX_SINGLE_FILE_SIZE = 100 * 1024 * 1024;
-    private static final int MAX_FILE_COUNT = 300;
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    @Autowired
+    private AsyncTaskService asyncTaskService;
+
+    @Autowired
+    private com.example.websocketchatbacked.service.FileProcessService fileProcessService;
+
 
     @PostMapping("/documents/upload")
     @SaCheckLogin
@@ -117,7 +122,7 @@ public class FileController {
                     } catch (Exception e) {
                         failCount++;
                         errors.add(new UploadErrorDTO(file.getOriginalFilename(), e.getMessage()));
-                        
+
                         if (storagePath != null) {
                             try {
                                 Path filePath = Paths.get(storagePath);
@@ -155,7 +160,7 @@ public class FileController {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
             List<KbDocument> kbDocuments = kbDocumentRepository.findAll();
-            
+
             List<FileListDTO> fileList = kbDocuments.stream()
                     .map(doc -> new FileListDTO(
                             doc.getId(),
@@ -185,14 +190,14 @@ public class FileController {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
             Optional<KbDocument> kbDocumentOpt = kbDocumentRepository.findById(id);
-            
+
             if (kbDocumentOpt.isEmpty()) {
                 return ApiResponse.error(404, "文件不存在");
             }
 
             KbDocument kbDocument = kbDocumentOpt.get();
             Path filePath = Paths.get(kbDocument.getStoragePath());
-            
+
             if (Files.exists(filePath)) {
                 Files.delete(filePath);
             }
@@ -220,7 +225,7 @@ public class FileController {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
             List<Long> ids = request.getIds();
-            
+
             if (ids == null || ids.isEmpty()) {
                 return ApiResponse.error(400, "请选择要删除的文件");
             }
@@ -234,7 +239,7 @@ public class FileController {
                     if (kbDocumentOpt.isPresent()) {
                         KbDocument kbDocument = kbDocumentOpt.get();
                         Path filePath = Paths.get(kbDocument.getStoragePath());
-                        
+
                         if (Files.exists(filePath)) {
                             Files.delete(filePath);
                         }
@@ -272,21 +277,21 @@ public class FileController {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
             Optional<KbDocument> kbDocumentOpt = kbDocumentRepository.findById(id);
-            
+
             if (kbDocumentOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
 
             KbDocument kbDocument = kbDocumentOpt.get();
             Path filePath = Paths.get(kbDocument.getStoragePath());
-            
+
             if (!Files.exists(filePath)) {
                 return ResponseEntity.notFound().build();
             }
 
             Resource resource = new FileSystemResource(filePath.toFile());
             String contentType = getMimeType(kbDocument.getFileType());
-            
+
             logOperation(userId, id, "download", request.getRemoteAddr(), "success", null);
 
             return ResponseEntity.ok()
@@ -298,6 +303,67 @@ public class FileController {
             return ResponseEntity.status(403).build();
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PostMapping("/file/process")
+    @SaCheckLogin
+    @SaCheckPermission("3")
+    public ApiResponse<FileProcessResponseDTO> processFile(@RequestBody FileProcessRequestDTO request) {
+
+        log.info("收到文件处理请求: kbId={}, documentIds={}, parseStrategy={}, segmentStrategy={}",
+                request.getKbId(), request.getDocumentIds(), request.getParseStrategy(), request.getSegmentStrategy());
+
+        try {
+            if (request.getKbId() == null) {
+                return ApiResponse.error(400, "知识库ID不能为空");
+            }
+
+            if (request.getDocumentIds() == null || request.getDocumentIds().isEmpty()) {
+                return ApiResponse.error(400, "文档ID列表不能为空");
+            }
+
+            if (request.getParseStrategy() == null || request.getParseStrategy().isEmpty()) {
+                return ApiResponse.error(400, "解析策略不能为空");
+            }
+
+            if (!List.of("precise", "fast").contains(request.getParseStrategy())) {
+                return ApiResponse.error(400, "解析策略必须是precise或fast");
+            }
+
+            if (request.getSegmentStrategy() == null || request.getSegmentStrategy().isEmpty()) {
+                return ApiResponse.error(400, "分段策略不能为空");
+            }
+
+            if (!List.of("auto", "custom", "hierarchy").contains(request.getSegmentStrategy())) {
+                return ApiResponse.error(400, "分段策略必须是auto、custom或hierarchy");
+            }
+
+            // 遍历文档列表，对每个文档进行解析分块
+            for (Long documentId : request.getDocumentIds()) {
+                asyncTaskService.processChunk(documentId, request.getParseStrategy(), request.getSegmentStrategy());
+            }
+
+            FileProcessResponseDTO response = fileProcessService.processFiles(
+                    request.getKbId(),
+                    request.getDocumentIds(),
+                    request.getParseStrategy(),
+                    request.getExtractContent(),
+                    request.getSegmentStrategy()
+            );
+
+            log.info("文件处理完成: kbId={}, processedCount={}", 
+                    request.getKbId(), response.getProcessedDocuments().size());
+
+            return ApiResponse.success(response);
+
+        } catch (NotLoginException e) {
+            return ApiResponse.error(401, "未授权，请先登录");
+        } catch (NotPermissionException e) {
+            return ApiResponse.error(403, "权限不足，仅超级管理员可操作");
+        } catch (Exception e) {
+            log.error("文件处理异常", e);
+            return ApiResponse.error(500, "文件处理异常: " + e.getMessage());
         }
     }
 

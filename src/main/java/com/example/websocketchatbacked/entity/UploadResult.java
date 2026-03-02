@@ -17,5 +17,5 @@ public class UploadResult {
     // 上传是否成功
     private boolean success;
     // 错误信息（如果上传失败，这里记录原因）
-    private String errorMsg;
+    private String msg;
 }
