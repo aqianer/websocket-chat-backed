@@ -190,6 +190,12 @@
             <artifactId>flexmark-ext-gfm-tasklist</artifactId>
             <version>0.64.8</version>
         </dependency>
+        <!-- 必须加！0.64.8 版本的 AST 工具类包 -->
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-util-ast</artifactId>
+            <version>0.64.8</version>
+        </dependency>
         <!-- Word解析 -->
         <dependency>
             <groupId>org.apache.poi</groupId>

@@ -1,6 +1,6 @@
 package com.example.websocketchatbacked;
 
-import com.example.websocketchatbacked.controller.WebSocketChatEndpoint;
+import com.example.websocketchatbacked.controller.ws.WebSocketChatEndpoint;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

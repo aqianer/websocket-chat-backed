@@ -1,5 +1,6 @@
 package com.example.websocketchatbacked.service.impl;
 
+import com.example.websocketchatbacked.controller.ws.FileParseEndpoint;
 import com.example.websocketchatbacked.dto.BatchConfigDTO;
 import com.example.websocketchatbacked.dto.UploadedFileDTO;
 import com.example.websocketchatbacked.entity.*;
@@ -63,7 +64,7 @@ public class AsyncTaskService {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Async("chunkExecutor")
-    public ProcessResult processChunk(Long documentId, String parseStrategy, String segmentStrategy) {
+    public void processChunk(Long documentId, String parseStrategy, String segmentStrategy) {
         ProcessResult processResult = new ProcessResult();
         // 初始化返回结果
         processResult.setSuccess(true);
@@ -97,7 +98,7 @@ public class AsyncTaskService {
                 esKbChunkList.add(esKbChunk);
                 chunkResult.add(chunk);
             }
-
+            // TODO 实现事务支持
             // 4. 持久化存储
             // 4.1 写入MySQL（存储分块元数据）
             kbChunkRepository.saveAll(chunkResult);
@@ -108,7 +109,16 @@ public class AsyncTaskService {
             processResult.setChunkResult(chunkResult);
             processResult.setMsg("文档分块处理完成，共生成" + chunkResult.size() + "个分块");
 
-        } catch (IllegalArgumentException e) {
+            // 6. 更新文档状态
+
+            // 7. 通过websocket连接发送成功响应给前端
+            FileParseEndpoint.sendMessageToUser("","");
+
+
+
+
+
+            } catch (IllegalArgumentException e) {
             // 业务异常
             processResult.setSuccess(false);
             processResult.setMsg("业务异常：" + e.getMessage());
@@ -125,7 +135,6 @@ public class AsyncTaskService {
             log.error("文档{}分块处理未知异常", documentId, e);
         }
 
-        return processResult;
     }
 
     /**

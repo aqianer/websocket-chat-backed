@@ -2,8 +2,8 @@ package com.example.websocketchatbacked.factory;
 
 import com.example.websocketchatbacked.parser.FileParser;
 import com.example.websocketchatbacked.parser.impl.MarkdownParser;
-import com.example.websocketchatbacked.parser.impl.PDFParser;
-import com.example.websocketchatbacked.parser.impl.WordParser;
+//import com.example.websocketchatbacked.parser.impl.PDFParser;
+//import com.example.websocketchatbacked.parser.impl.WordParser;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -16,8 +16,8 @@ public class ParserFactory {
     
     public ParserFactory() {
         registerParser(new MarkdownParser());
-        registerParser(new WordParser());
-        registerParser(new PDFParser());
+//        registerParser(new WordParser());
+//        registerParser(new PDFParser());
     }
     
     public void registerParser(FileParser parser) {

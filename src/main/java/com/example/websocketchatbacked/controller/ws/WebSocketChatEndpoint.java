@@ -1,4 +1,4 @@
-package com.example.websocketchatbacked.controller;
+package com.example.websocketchatbacked.controller.ws;
 
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.OnClose;
