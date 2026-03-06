@@ -4,9 +4,11 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.example.websocketchatbacked.dto.*;
 import com.example.websocketchatbacked.entity.KbChunk;
 import com.example.websocketchatbacked.entity.KbDocument;
+import com.example.websocketchatbacked.entity.KbDocumentRelation;
 import com.example.websocketchatbacked.entity.KnowledgeBase;
 import com.example.websocketchatbacked.exception.BusinessException;
 import com.example.websocketchatbacked.repository.KbChunkRepository;
+import com.example.websocketchatbacked.repository.KbDocumentRelationRepository;
 import com.example.websocketchatbacked.repository.KbDocumentRepository;
 import com.example.websocketchatbacked.repository.KnowledgeBaseRepository;
 import com.example.websocketchatbacked.service.KnowledgeBaseService;
@@ -38,6 +40,9 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     @Autowired
     private KbChunkRepository kbChunkRepository;
+
+    @Autowired
+    private KbDocumentRelationRepository kbDocumentRelationRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             .withZone(ZoneId.systemDefault());
@@ -189,35 +194,40 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         int size = pageSize != null && pageSize > 0 ? pageSize : 10;
 
         Pageable pageable = PageRequest.of(pageNum - 1, size);
-        Page<KbDocument> docPage;
+        Page<KbDocumentRelation> relationPage;
 
         if (keyword != null && !keyword.isEmpty()) {
-            docPage = kbDocumentRepository.findByKbIdAndFileNameContaining(kbId, keyword, pageable);
+            relationPage = kbDocumentRelationRepository.findByKbIdAndDocumentNameContaining(kbId, keyword, pageable);
         } else {
-            docPage = kbDocumentRepository.findByKbId(kbId, pageable);
+            relationPage = kbDocumentRelationRepository.findByKbId(kbId, pageable);
         }
 
-        List<DocumentDTO> dtoList = docPage.getContent().stream().map(doc -> {
+        List<DocumentDTO> dtoList = relationPage.getContent().stream().map(relation -> {
+            KbDocument doc = relation.getDocument();
+            if (doc == null) {
+                return null;
+            }
             DocumentDTO dto = new DocumentDTO();
             dto.setId(doc.getId());
             dto.setFileName(doc.getFileName());
-            dto.setUploader(doc.getKnowledgeBase() != null ? doc.getKnowledgeBase().getOwner() : "系统");
+            dto.setUploader("系统");
             dto.setUploadTime(doc.getCreateTime() != null ? DATETIME_FORMATTER.format(doc.getCreateTime()) : "");
             dto.setChunkCount(doc.getChunkCount() != null ? doc.getChunkCount() : 0);
             dto.setVectorStatus(doc.getChunkCount() != null && doc.getChunkCount() > 0 ? "已向量化" : "未向量化");
             dto.setFileSize(formatFileSize(doc.getFileSize()));
             dto.setFileType(doc.getFileType());
             return dto;
-        }).collect(Collectors.toList());
+        }).filter(dto -> dto != null).collect(Collectors.toList());
 
-        return new PageResponse<>(dtoList, docPage.getTotalElements());
+        return new PageResponse<>(dtoList, relationPage.getTotalElements());
     }
 
     @Override
     @Transactional
     public UploadResultDTO uploadDocuments(Long kbId, MultipartFile[] files) {
-        KnowledgeBase kb = knowledgeBaseRepository.findById(kbId)
-                .orElseThrow(() -> new BusinessException(404, "知识库不存在"));
+        if (!knowledgeBaseRepository.existsById(kbId)) {
+            throw new BusinessException(404, "知识库不存在");
+        }
 
         if (files == null || files.length == 0) {
             throw new BusinessException(400, "请选择要上传的文件");
@@ -244,24 +254,26 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 }
 
                 KbDocument doc = new KbDocument();
-                doc.setKbId(kbId);
                 doc.setUserId(StpUtil.getLoginIdAsLong());
                 doc.setFileName(originalFilename);
                 doc.setFileSize(file.getSize());
                 doc.setFileType(fileExtension.toUpperCase());
-                doc.setStoragePath("/uploads/kb/" + kbId + "/" + System.currentTimeMillis() + "_" + originalFilename);
+                doc.setStoragePath("/uploads/" + System.currentTimeMillis() + "_" + originalFilename);
                 doc.setChunkCount(0);
                 doc.setStatus((byte) 1);
                 doc.setCurrentStep((byte) 1);
                 doc.setCreateTime(java.time.LocalDateTime.now());
                 doc.setUpdateTime(java.time.LocalDateTime.now());
 
-                kbDocumentRepository.save(doc);
+                KbDocument savedDocument = kbDocumentRepository.save(doc);
+
+                KbDocumentRelation relation = new KbDocumentRelation();
+                relation.setKbId(kbId);
+                relation.setDocumentId(savedDocument.getId());
+                relation.setCreateTime(java.time.LocalDateTime.now());
+                kbDocumentRelationRepository.save(relation);
+
                 successCount++;
-
-                kb.setDocCount((kb.getDocCount() != null ? kb.getDocCount() : 0) + 1);
-                knowledgeBaseRepository.save(kb);
-
             } catch (Exception e) {
                 failCount++;
             }
@@ -276,17 +288,8 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         KbDocument doc = kbDocumentRepository.findById(documentId)
                 .orElseThrow(() -> new BusinessException(404, "文档不存在"));
 
-        if (!doc.getKbId().equals(kbId)) {
-            throw new BusinessException(403, "文档不属于该知识库");
-        }
-
+        kbDocumentRelationRepository.deleteByKbIdAndDocumentId(kbId, documentId);
         kbDocumentRepository.deleteById(documentId);
-
-        KnowledgeBase kb = knowledgeBaseRepository.findById(kbId).orElse(null);
-        if (kb != null && kb.getDocCount() != null && kb.getDocCount() > 0) {
-            kb.setDocCount(kb.getDocCount() - 1);
-            knowledgeBaseRepository.save(kb);
-        }
     }
 
     @Override
@@ -294,10 +297,6 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     public void reVectorizeDocument(Long kbId, Long documentId) {
         KbDocument doc = kbDocumentRepository.findById(documentId)
                 .orElseThrow(() -> new BusinessException(404, "文档不存在"));
-
-        if (!doc.getKbId().equals(kbId)) {
-            throw new BusinessException(403, "文档不属于该知识库");
-        }
 
         List<KbChunk> chunks = kbChunkRepository.findByDocIdOrderByChunkNum(documentId);
         for (KbChunk chunk : chunks) {
@@ -311,10 +310,6 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     public List<ChunkPreviewDTO> getDocumentChunks(Long kbId, Long documentId) {
         KbDocument doc = kbDocumentRepository.findById(documentId)
                 .orElseThrow(() -> new BusinessException(404, "文档不存在"));
-
-        if (!doc.getKbId().equals(kbId)) {
-            throw new BusinessException(403, "文档不属于该知识库");
-        }
 
         List<KbChunk> chunks = kbChunkRepository.findByDocIdOrderByChunkNum(documentId);
         return chunks.stream().map(chunk -> {
@@ -330,10 +325,6 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     public DocumentUploadWizardDTO getDocumentUploadWizard(Long kbId, Long documentId) {
         KbDocument doc = kbDocumentRepository.findById(documentId)
                 .orElseThrow(() -> new BusinessException(404, "文档不存在"));
-
-        if (!doc.getKbId().equals(kbId)) {
-            throw new BusinessException(403, "文档不属于该知识库");
-        }
 
         DocumentUploadWizardDTO dto = new DocumentUploadWizardDTO();
         dto.setDocumentId(doc.getId());

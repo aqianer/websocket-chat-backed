@@ -14,10 +14,8 @@ import java.util.List;
 @Repository
 public interface KbDocumentRepository extends JpaRepository<KbDocument, Long>, JpaSpecificationExecutor<KbDocument> {
 
-    Page<KbDocument> findByKbId(Long kbId, Pageable pageable);
+    @Query("SELECT d FROM KbDocument d WHERE d.fileName LIKE %:keyword%")
+    Page<KbDocument> findByFileNameContaining(@Param("keyword") String keyword, Pageable pageable);
 
-    @Query("SELECT d FROM KbDocument d WHERE d.kbId = :kbId AND d.fileName LIKE %:keyword%")
-    Page<KbDocument> findByKbIdAndFileNameContaining(@Param("kbId") Long kbId, @Param("keyword") String keyword, Pageable pageable);
-
-    List<KbDocument> findByKbId(Long kbId);
+    Optional<KbDocument> findByFileHash(String fileHash);
 }

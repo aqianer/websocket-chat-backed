@@ -73,6 +73,8 @@ public class KnowledgeBaseController {
             @Parameter(description = "页码", required = true) @RequestParam Integer page,
             @Parameter(description = "每页数量", required = true) @RequestParam Integer pageSize,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword) {
+
+        // TODO:
         PageResponse<DocumentDTO> result = knowledgeBaseService.getDocumentList(kbId, page, pageSize, keyword);
         return ApiResponse.success(result);
     }

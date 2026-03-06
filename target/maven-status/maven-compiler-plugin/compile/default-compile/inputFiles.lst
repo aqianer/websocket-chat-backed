@@ -53,6 +53,8 @@ E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbac
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\entity\FileRecord.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\entity\KbChunk.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\entity\KbDocument.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\entity\KbDocumentRelation.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\entity\KbDocumentRelationId.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\entity\KbPermission.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\entity\KnowledgeBase.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\entity\MdParseResult.java
@@ -85,6 +87,7 @@ E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbac
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\FileOperationLogRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\FileRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\KbChunkRepository.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\KbDocumentRelationRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\KbDocumentRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\KbPermissionRepository.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\repository\KnowledgeBaseRepository.java
@@ -119,4 +122,5 @@ E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbac
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\splitter\impl\FixedLengthSplitter.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\splitter\impl\HeadingSplitter.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\util\DataGenerator.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\util\SpringContextUtil.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\WebSocketChatBackedApplication.java

@@ -81,9 +81,9 @@ public class AsyncTaskService {
             ParseResult parseResult = fileParser.parse(document.getStoragePath());
 
             // 3. 分块处理（根据策略分块）
-            FileSplitter fileSplitter = splitFactory.getSplitter("");
+            FileSplitter fileSplitter = splitFactory.getSplitter("heading");
             List<String> splitResult = fileSplitter.split(parseResult);
-
+            log.info("文档{}分块处理开始，共{}行", documentId, splitResult.size());
 
             // 转换器处理
             List<KbChunk> chunkResult = new ArrayList<>();
@@ -93,11 +93,12 @@ public class AsyncTaskService {
                 chunk.setDocId(document.getId());
                 chunk.setContent(splitResult.get(i));
                 chunk.setChunkNum(i);
-                chunk.setKbId(document.getKbId());
                 EsKbChunk esKbChunk = EsKbChunk.from(chunk, document);
                 esKbChunkList.add(esKbChunk);
                 chunkResult.add(chunk);
             }
+
+            log.info("文档{}分块处理完成，共生成{}个分块", documentId, chunkResult.size());
             // TODO 实现事务支持
             // 4. 持久化存储
             // 4.1 写入MySQL（存储分块元数据）
@@ -112,13 +113,10 @@ public class AsyncTaskService {
             // 6. 更新文档状态
 
             // 7. 通过websocket连接发送成功响应给前端
-            FileParseEndpoint.sendMessageToUser("","");
+            FileParseEndpoint.sendMessageToUser("", "");
 
 
-
-
-
-            } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             // 业务异常
             processResult.setSuccess(false);
             processResult.setMsg("业务异常：" + e.getMessage());
@@ -312,7 +310,6 @@ public class AsyncTaskService {
 
     private Long saveFileRecord(MultipartFile file, Long userId, String storagePath, Long kbId) {
         KbDocument kbDocument = new KbDocument();
-        kbDocument.setKbId(kbId != null ? kbId : 1L);
         kbDocument.setUserId(userId);
         kbDocument.setFileName(file.getOriginalFilename());
         kbDocument.setStoragePath(storagePath);

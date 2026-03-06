@@ -367,7 +367,6 @@ public class DataGenerator implements CommandLineRunner {
         List<KbDocument> kbDocuments = new ArrayList<>();
         for (int i = 0; i < 25; i++) {
             KbDocument kbDocument = new KbDocument();
-            kbDocument.setKbId((long) (random.nextInt(5) + 1));
             kbDocument.setUserId((long) (random.nextInt(20) + 1));
             kbDocument.setFileName("文件_" + (i + 1) + "." + FILE_TYPES[random.nextInt(FILE_TYPES.length)]);
             kbDocument.setStoragePath("/uploads/" + kbDocument.getFileName());

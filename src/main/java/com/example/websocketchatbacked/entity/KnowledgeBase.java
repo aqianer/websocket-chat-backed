@@ -1,8 +1,8 @@
 package com.example.websocketchatbacked.entity;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "kb_knowledge_base")
@@ -44,6 +44,9 @@ public class KnowledgeBase {
 
     @Column(name = "deleted", nullable = false)
     private Byte deleted;
+
+    @OneToMany(mappedBy = "knowledgeBase", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<KbDocumentRelation> documentRelations;
 
     public Long getId() {
         return id;
@@ -139,5 +142,13 @@ public class KnowledgeBase {
 
     public void setDeleted(Byte deleted) {
         this.deleted = deleted;
+    }
+
+    public List<KbDocumentRelation> getDocumentRelations() {
+        return documentRelations;
+    }
+
+    public void setDocumentRelations(List<KbDocumentRelation> documentRelations) {
+        this.documentRelations = documentRelations;
     }
 }

@@ -1,8 +1,8 @@
 package com.example.websocketchatbacked.entity;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "kb_document")
@@ -11,9 +11,6 @@ public class KbDocument {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private Long id;
-
-    @Column(name = "kb_id", nullable = false)
-    private Long kbId;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
@@ -30,6 +27,12 @@ public class KbDocument {
     @Column(name = "storage_path", length = 500)
     private String storagePath;
 
+    @Column(name = "file_hash", length = 255)
+    private String fileHash;
+
+    @Column(name = "sim_hash", length = 255)
+    private String simHash;
+
     @Column(name = "chunk_count")
     private Integer chunkCount;
 
@@ -45,9 +48,8 @@ public class KbDocument {
     @Column(name = "update_time", nullable = false)
     private LocalDateTime updateTime;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "kb_id", insertable = false, updatable = false)
-    private KnowledgeBase knowledgeBase;
+    @OneToMany(mappedBy = "document", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<KbDocumentRelation> knowledgeBaseRelations;
 
     public Long getId() {
         return id;
@@ -55,14 +57,6 @@ public class KbDocument {
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public Long getKbId() {
-        return kbId;
-    }
-
-    public void setKbId(Long kbId) {
-        this.kbId = kbId;
     }
 
     public Long getUserId() {
@@ -105,6 +99,22 @@ public class KbDocument {
         this.storagePath = storagePath;
     }
 
+    public String getFileHash() {
+        return fileHash;
+    }
+
+    public void setFileHash(String fileHash) {
+        this.fileHash = fileHash;
+    }
+
+    public String getSimHash() {
+        return simHash;
+    }
+
+    public void setSimHash(String simHash) {
+        this.simHash = simHash;
+    }
+
     public Integer getChunkCount() {
         return chunkCount;
     }
@@ -145,11 +155,11 @@ public class KbDocument {
         this.updateTime = updateTime;
     }
 
-    public KnowledgeBase getKnowledgeBase() {
-        return knowledgeBase;
+    public List<KbDocumentRelation> getKnowledgeBaseRelations() {
+        return knowledgeBaseRelations;
     }
 
-    public void setKnowledgeBase(KnowledgeBase knowledgeBase) {
-        this.knowledgeBase = knowledgeBase;
+    public void setKnowledgeBaseRelations(List<KbDocumentRelation> knowledgeBaseRelations) {
+        this.knowledgeBaseRelations = knowledgeBaseRelations;
     }
 }
