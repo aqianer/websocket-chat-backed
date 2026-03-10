@@ -8,8 +8,4 @@ import java.io.IOException;
 public interface FileParser {
     
     ParseResult parse(String file) throws IOException;
-    
-    String getSupportedExtension();
-    
-    boolean supports(String fileExtension);
 }
