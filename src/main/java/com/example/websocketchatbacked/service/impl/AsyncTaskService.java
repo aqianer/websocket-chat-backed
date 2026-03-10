@@ -220,13 +220,12 @@ public class AsyncTaskService {
 
                 // 注意判空,如果分块内容是空的就代表的是已经向量化
                 List<Document> documents = chunks.stream().filter(chunk -> chunk.getContent() != null && !chunk.getContent().isEmpty()).map(chunk -> new Document(chunk.getId().toString(), chunk.getContent(), new HashMap<>())).toList();
+                log.info("向量化文档 {} 中有 {} 个非空的分块", documentId, documents.size());
                 vectorStore.add(documents);
                 log.info("文档ID {} 所有分块向量化完成", documentId);
             } catch (Exception e) {
                 log.error("文档ID {} 向量化失败", documentId, e);
             }
-
-            log.info("所有文档向量化任务完成");
         });
     }
 

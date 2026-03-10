@@ -137,6 +137,7 @@ E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbac
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\KnowledgeBaseService.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\PackageService.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\RechargeService.java
+E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\SimpleVectorStore.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\UserQueryService.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\service\UserService.java
 E:\JavaProjects\websocket-chat-backed\src\main\java\com\example\websocketchatbacked\splitter\FileSplitter.java

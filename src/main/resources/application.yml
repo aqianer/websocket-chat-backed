@@ -29,9 +29,9 @@ spring:
   ai:
     dashscope:
       # 通义千问 API 地址（固定）
-      base-url: https://dashscope.aliyuncs.com/api/v1
+#      base-url: https://dashscope.aliyuncs.com/api/v1
       # 你的阿里云灵积 API Key（需在阿里云控制台获取）
-      api-key: sk-c94d94fed5804f47baf062d9a9c8828b
+      api-key: ${DASHSCOPE_API_KEY}
       chat:
         options:
           # 通义千问模型名称，可选：qwen-max/qwen-plus/qwen-turbo
@@ -40,21 +40,22 @@ spring:
           temperature: 0.7
       embedding:
         options:
-          base-url: https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding
           model: text-embedding-v3
-          fallback:
-            enabled: true
-            model: text-embedding-v3
-          retry:
-            max-attempts: 3
-            initial-delay-ms: 1000
-            multiplier: 2.0
-            max-delay-ms: 10000
+#          fallback:
+#            enabled: true
+#            model: text-embedding-v3
+#          retry:
+#            max-attempts: 3
+#            initial-delay-ms: 1000
+#            multiplier: 2.0
+#            max-delay-ms: 10000
     vectorstore:
       milvus:
         client:
           host: localhost      # Milvus 服务地址
           port: 19530          # Milvus 默认端口
+          username: ccl
+          password: milvus
         collection-name: demo_vector_collection  # 集合名称（类似表名）
         embedding-dimension: 1024                # 必须与嵌入模型维度一致（智谱 embedding-2 是 1024）
         index-type: IVF_FLAT                     # 1.1.2 推荐新手使用的索引类型
