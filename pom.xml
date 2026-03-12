@@ -39,7 +39,9 @@
             <id>spring-milestones</id>
             <name>Spring Milestones</name>
             <url>https://repo.spring.io/milestone</url>
-            <snapshots><enabled>false</enabled></snapshots>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
     </repositories>
 
@@ -138,20 +140,27 @@
             <artifactId>spring-ai-starter-vector-store-milvus</artifactId>
         </dependency>
 
-<!--        &lt;!&ndash; Spring WebFlux - 阿里云 DashScope 需要 &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.boot</groupId>-->
-<!--            <artifactId>spring-boot-starter-webflux</artifactId>-->
-<!--        </dependency>-->
+        <!-- 向量数据库存储 AI 模型不知道的数据。当用户问题发送到 AI 模型时，QuestionAnswerAdvisor
+        会查询向量数据库以查找与用户问题相关的文档 https://java2ai.com/integration/rag/retrieval-augmented-generation -->
 
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-advisors-vector-store</artifactId>
+        </dependency>
+
+        <!--        &lt;!&ndash; Spring WebFlux - 阿里云 DashScope 需要 &ndash;&gt;-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.springframework.boot</groupId>-->
+        <!--            <artifactId>spring-boot-starter-webflux</artifactId>-->
+        <!--        </dependency>-->
 
 
         <!-- Spring AI 核心依赖（稳定版） -->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.ai</groupId>-->
-<!--            <artifactId>spring-ai-core</artifactId>-->
-<!--            <version>${spring-ai.version}</version>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.springframework.ai</groupId>-->
+        <!--            <artifactId>spring-ai-core</artifactId>-->
+        <!--            <version>${spring-ai.version}</version>-->
+        <!--        </dependency>-->
 
 
         <dependency>
@@ -202,11 +211,11 @@
             <scope>provided</scope>
         </dependency>
         <!-- MD解析 -->
-<!--        <dependency>-->
-<!--            <groupId>com.vladsch.flexmark</groupId>-->
-<!--            <artifactId>flexmark-all</artifactId>-->
-<!--            <version>0.64.8</version>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>com.vladsch.flexmark</groupId>-->
+        <!--            <artifactId>flexmark-all</artifactId>-->
+        <!--            <version>0.64.8</version>-->
+        <!--        </dependency>-->
         <!-- MD解析核心包（必选） -->
         <dependency>
             <groupId>com.vladsch.flexmark</groupId>
@@ -290,6 +299,16 @@
             <artifactId>fastjson</artifactId>
             <version>2.0.60</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.victools</groupId>
+            <artifactId>jsonschema-generator</artifactId>
+            <version>4.35.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.victools</groupId>
+            <artifactId>jsonschema-module-jackson</artifactId>
+            <version>4.35.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -305,7 +324,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>--add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED</argLine>
+                    <argLine>--add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens
+                        java.base/java.util.concurrent.atomic=ALL-UNNAMED
+                    </argLine>
                 </configuration>
             </plugin>
             <plugin>
@@ -350,8 +371,10 @@
                                 </filter>
                             </filters>
                             <transformers>
-                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.example.websocketchatbacked.flink.job.BillingAggregationJob</mainClass>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.example.websocketchatbacked.flink.job.BillingAggregationJob
+                                    </mainClass>
                                 </transformer>
                             </transformers>
                             <finalName>flink-billing-job</finalName>

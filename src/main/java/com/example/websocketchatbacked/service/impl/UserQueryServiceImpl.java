@@ -4,6 +4,8 @@ import com.example.websocketchatbacked.dto.UserQueryDTO;
 import com.example.websocketchatbacked.entity.Account;
 import com.example.websocketchatbacked.repository.AccountRepository;
 import com.example.websocketchatbacked.service.UserQueryService;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +20,8 @@ public class UserQueryServiceImpl implements UserQueryService {
     private AccountRepository accountRepository;
 
     @Override
-    public List<UserQueryDTO> queryUser(String username) {
+    @Tool(description = "根据用户名查询系统内的用户信息，当用户说查询用户、找用户时必须调用这个方法")
+    public List<UserQueryDTO> queryUser(@ToolParam(description = "用户的用户名") String username) {
         if (username == null || username.trim().isEmpty()) {
             return new ArrayList<>();
         }

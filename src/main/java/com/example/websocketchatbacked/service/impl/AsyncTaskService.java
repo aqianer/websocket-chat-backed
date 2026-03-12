@@ -84,8 +84,7 @@ public class AsyncTaskService {
 
         try {
             // 1. 查询文档信息
-            KbDocument document = kbDocumentRepository.findById(documentId)
-                    .orElseThrow(() -> new IllegalArgumentException("文档ID " + documentId + " 不存在"));
+            KbDocument document = kbDocumentRepository.findById(documentId).orElseThrow(() -> new IllegalArgumentException("文档ID " + documentId + " 不存在"));
 
             // 2. 获取对应解析器并解析文档
             FileParser fileParser = parserFactory.getParser(document.getFileType().toLowerCase());
@@ -99,17 +98,15 @@ public class AsyncTaskService {
             log.info("文档{}分块处理开始，共{}行", documentId, splitResult.size());
 
             // 使用 Stream 流进行转换器处理
-            List<KbChunk> chunkResult = splitResult.stream()
-                    .map(content -> {
-                        KbChunk chunk = new KbChunk();
-                        chunk.setDocId(document.getId());
-                        chunk.setKbId(kbId);
-                        chunk.setContent(content);
-                        chunk.setChunkNum(splitResult.indexOf(content));
-                        chunk.setSimHash(SimHashUtil.getSimHash(content));
-                        return chunk;
-                    })
-                    .collect(Collectors.toList());
+            List<KbChunk> chunkResult = splitResult.stream().map(content -> {
+                KbChunk chunk = new KbChunk();
+                chunk.setDocId(document.getId());
+                chunk.setKbId(kbId);
+                chunk.setContent(content);
+                chunk.setChunkNum(splitResult.indexOf(content));
+                chunk.setSimHash(SimHashUtil.getSimHash(content));
+                return chunk;
+            }).collect(Collectors.toList());
 
             log.info("文档{}分块处理完成，共生成{}个分块", documentId, chunkResult.size());
             // TODO 实现事务支持
@@ -218,10 +215,21 @@ public class AsyncTaskService {
                 List<KbChunk> chunks = kbChunkRepository.findByDocIdOrderByChunkNum(documentId);
                 log.info("文档ID {} 找到 {} 个分块", documentId, chunks.size());
 
+                // AR : 为了避免重复向量化，先检查是否已经向量化
                 // 注意判空,如果分块内容是空的就代表的是已经向量化
-                List<Document> documents = chunks.stream().filter(chunk -> chunk.getContent() != null && !chunk.getContent().isEmpty()).map(chunk -> new Document(chunk.getId().toString(), chunk.getContent(), new HashMap<>())).toList();
+                // BUG :通义千问 Embedding API 的服务端限制,文本数组长度超过 25 条 会报错 The input texts limit 25.为满足要求按每次10个分批处理
+                List<Document> documents = chunks.stream().filter(chunk -> chunk.getContent() != null && !chunk.getContent().isEmpty() && chunk.getEmbeddingId() == null).map(chunk -> new Document(chunk.getId().toString(), chunk.getContent(), new HashMap<>())).toList();
                 log.info("向量化文档 {} 中有 {} 个非空的分块", documentId, documents.size());
-                vectorStore.add(documents);
+                // 分批处理，每批最多10条
+                int batchSize = 10;
+                for (int i = 0; i < documents.size(); i += batchSize) {
+                    int end = Math.min(i + batchSize, documents.size());
+                    List<Document> batch = documents.subList(i, end);
+                    vectorStore.add(batch);
+                    log.info("已完成文档ID {} 第 {}~{} 条分块的向量化", documentId, i + 1, end);
+                }
+                // TODO 双写milvus和Mysql分布式事务支持，后续需要修改Mysql中的kb_chunk.embedding_id,以及文档的向量化状态
+
                 log.info("文档ID {} 所有分块向量化完成", documentId);
             } catch (Exception e) {
                 log.error("文档ID {} 向量化失败", documentId, e);

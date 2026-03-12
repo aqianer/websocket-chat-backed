@@ -126,3 +126,4 @@ logging:
   level:
     com.example.websocketchatbacked: INFO
     com.example.websocketchatbacked.config.LoggingAspect: INFO
+    org.springframework.ai.chat.client.advisor: DEBUG
